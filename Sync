@@ -161,7 +161,7 @@ sendBtn.MouseButton1Click:Connect(function()
 
 	for i = 1, totalTicks do
 		current = math.floor(targetServers * (i / totalTicks))
-		sendingLabel.Text = string.format("Syncing to %d servers URL, please wait about 50s", current)
+		sendingLabel.Text = string.format("Syncing with %d servers URL, please wait about 50s", current)
 		task.wait(0.1)
 	end
 
