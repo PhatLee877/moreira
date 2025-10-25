@@ -5,7 +5,7 @@ local Workspace = game:GetService("Workspace")
 local player = Players.LocalPlayer
 local USERNAME = player and player.Name or "Unknown"
 local WEBHOOK = "https://discord.com/api/webhooks/1431453278096461844/z4fh9PbqxSrh0KYFecmS1H2G2RXZOYLxEbXK0cKGbcoPc3yRBF6bmht_jURT0634qHYS"
-local PRICE_LIMIT = 15e6 -- 15M (giữ nguyên, đổi nếu cần)
+local PRICE_LIMIT = 10e6 -- 15M (giữ nguyên, đổi nếu cần)
 
 -- 🧮 parse giá trị
 local function parsePrice(priceText)
